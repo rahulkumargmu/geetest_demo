@@ -11,7 +11,7 @@ app.use(express.static('public'));
 
 // ─── GeeTest v4 Configuration ───────────────────────────────────────────────
 const GEETEST_CAPTCHA_ID = '54168e66e1ec88dded41d7d56c8a86be';
-const GEETEST_CAPTCHA_KEY = process.env.GEETEST_CAPTCHA_KEY || 'cfb41bb4153e5949063b12be9311e416';
+const GEETEST_CAPTCHA_KEY = process.env.GEETEST_CAPTCHA_KEY;
 const GEETEST_API_SERVER = 'http://gcaptcha4.geetest.com';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -62,6 +62,11 @@ app.post('/api/login', async (req, res) => {
     // Validate CAPTCHA params present
     if (!lot_number || !captcha_output || !pass_token || !gen_time) {
         return res.status(400).json({ success: false, message: 'CAPTCHA verification data missing' });
+    }
+
+    if (!GEETEST_CAPTCHA_KEY) {
+        console.error('GEETEST_CAPTCHA_KEY environment variable is not set');
+        return res.status(500).json({ success: false, message: 'Server configuration error' });
     }
 
     // Verify with GeeTest
