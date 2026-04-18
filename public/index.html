@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo CAPTCHA — GeeTest v4</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- GeeTest v4 SDK -->
+    <script src="https://static.geetest.com/v4/gt4.js"></script>
+</head>
+<body class="blue-background">
+    <header class="page-header">Demo CAPTCHA</header>
+
+    <main class="main-content">
+        <div class="container" style="max-width: 420px;">
+            <!-- Login Section -->
+            <div class="login-section" style="width: 100%;">
+                <h2>Login</h2>
+                <form id="login-form">
+                    <input type="email" id="login-email" placeholder="Email" value="test@gmail.com" required />
+                    <input type="password" id="login-password" placeholder="Password" value="test" required />
+
+                    <!-- GeeTest CAPTCHA widget -->
+                    <div id="login-captcha-box"></div>
+
+                    <button type="submit">Login</button>
+                </form>
+
+                <!-- Success message (hidden by default) -->
+                <div id="success-message" style="display:none; margin-top:20px; padding:15px; background:#d4edda; color:#155724; border:1px solid #c3e6cb; border-radius:6px; text-align:center; font-weight:bold;">
+                    ✅ Login Successful!
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
