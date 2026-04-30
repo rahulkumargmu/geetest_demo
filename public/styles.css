@@ -97,6 +97,16 @@
   button:hover {
     background-color: #0056b3;
   }
+
+  /* ===== Hide Friendly Captcha widget (runs invisibly in background) ===== */
+  .frc-captcha {
+    position: absolute;
+    overflow: hidden;
+    height: 0;
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
   
   /* ===== Users Page ===== */
   .users-container {

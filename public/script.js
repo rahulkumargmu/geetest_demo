@@ -1,50 +1,19 @@
-// ─── GeeTest v4 CAPTCHA Configuration ───────────────────────────────────────
-// captchaId is your GeeTest Site Key (safe to expose on frontend)
-const GEETEST_CAPTCHA_ID = '54168e66e1ec88dded41d7d56c8a86be';
-// riskType controls the challenge shown to risky users
-// Options: 'slide' | 'icon' | 'winlinze'
-const GEETEST_RISK_TYPE = 'slide';
+// ─── Friendly Captcha v2 Configuration ──────────────────────────────────────
+// Note: Friendly Captcha widget is automatically initialized by the SDK
+// The widget is already embedded in the HTML with the 'frc-captcha' class
 
-let loginCaptchaObj = null;
-
-// ─── Initialize GeeTest CAPTCHA ─────────────────────────────────────────────
+// ─── Login Form Handler ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    initGeetest4(
-        {
-            captchaId: GEETEST_CAPTCHA_ID, // Site Key
-            product: 'float',              // Widget style
-            riskType: GEETEST_RISK_TYPE,   // Risk challenge type
-            language: 'eng',
-        },
-        function (captchaObj) {
-            loginCaptchaObj = captchaObj;
-            captchaObj.appendTo('#login-captcha-box');
-            captchaObj
-                .onReady(function () {
-                    console.log('Login CAPTCHA ready');
-                })
-                .onSuccess(function () {
-                    console.log('Login CAPTCHA success');
-                })
-                .onError(function (err) {
-                    console.error('Login CAPTCHA error:', err);
-                });
-        }
-    );
-
-    // ── Login Form Handler ──
     const loginForm = document.getElementById('login-form');
+    
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            if (!loginCaptchaObj) {
-                alert('CAPTCHA is still loading. Please wait.');
-                return;
-            }
+            // Get the CAPTCHA response from the form
+            const captchaResponse = loginForm.querySelector('[name="frc-captcha-response"]')?.value;
 
-            const captchaResult = loginCaptchaObj.getValidate();
-            if (!captchaResult) {
+            if (!captchaResponse) {
                 alert('Please complete the CAPTCHA verification');
                 return;
             }
@@ -52,23 +21,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
 
-            login(email, password, captchaResult);
+            login(email, password, captchaResponse);
         });
     }
 });
 
 // ─── Login API Call ─────────────────────────────────────────────────────────
-function login(email, password, captchaResult) {
+function login(email, password, captchaResponse) {
+    const submitButton = document.getElementById('submit-button');
+    if (submitButton) submitButton.disabled = true;
+
     fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             email,
             password,
-            lot_number: captchaResult.lot_number,
-            captcha_output: captchaResult.captcha_output,
-            pass_token: captchaResult.pass_token,
-            gen_time: captchaResult.gen_time,
+            'frc-captcha-response': captchaResponse,
         }),
     })
         .then((response) => response.json())
@@ -79,11 +48,16 @@ function login(email, password, captchaResult) {
                 document.getElementById('success-message').style.display = 'block';
             } else {
                 alert('Login failed: ' + (data.message || 'Unknown error'));
-                if (loginCaptchaObj) loginCaptchaObj.reset();
+                // Reload page to reset CAPTCHA
+                setTimeout(() => window.location.reload(), 1000);
             }
         })
         .catch((err) => {
-            console.error(err);
-            if (loginCaptchaObj) loginCaptchaObj.reset();
+            console.error('Login error:', err);
+            alert('An error occurred. Please try again.');
+            setTimeout(() => window.location.reload(), 1000);
+        })
+        .finally(() => {
+            if (submitButton) submitButton.disabled = false;
         });
 }

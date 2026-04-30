@@ -1,52 +1,54 @@
 ///////////////////////////////////////////////////////////////////////////////
-// server.js — Express + GeeTest v4 CAPTCHA (Login only)
+// server.js — Express + Friendly Captcha v2 (Login only)
 ///////////////////////////////////////////////////////////////////////////////
+require('dotenv').config();
 const express = require('express');
-const crypto = require('crypto');
 const axios = require('axios');
 
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ─── GeeTest v4 Configuration ───────────────────────────────────────────────
-const GEETEST_CAPTCHA_ID = '54168e66e1ec88dded41d7d56c8a86be';
-const GEETEST_CAPTCHA_KEY = process.env.GEETEST_CAPTCHA_KEY;
-const GEETEST_API_SERVER = 'http://gcaptcha4.geetest.com';
+// ─── Friendly Captcha v2 Configuration ──────────────────────────────────────
+const FRIENDLY_CAPTCHA_API_KEY = process.env.FRIENDLY_CAPTCHA_API_KEY;
+const FRIENDLY_CAPTCHA_SITEKEY = process.env.FRIENDLY_CAPTCHA_SITEKEY;
+const FRIENDLY_CAPTCHA_API_URL = 'https://global.frcapi.com/api/v2/captcha/siteverify';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
- * validateGeeTestCaptcha — secondary verification against GeeTest API.
+ * validateFriendlyCaptcha — secondary verification against Friendly Captcha API.
+ * @param {string} response - The frc-captcha-response value from the form
+ * @param {string} sitekey - Optional: the sitekey to verify against
+ * @returns {Promise<{success: boolean, data?: object, error?: object}>}
  */
-async function validateGeeTestCaptcha(lotNumber, captchaOutput, passToken, genTime) {
+async function validateFriendlyCaptcha(response, sitekey = null) {
     try {
-        // 1. Generate HMAC-SHA256 signature
-        const signToken = crypto
-            .createHmac('sha256', GEETEST_CAPTCHA_KEY)
-            .update(lotNumber)
-            .digest('hex');
+        const payload = { response };
+        if (sitekey) {
+            payload.sitekey = sitekey;
+        }
 
-        // 2. Build POST body
-        const formData = new URLSearchParams();
-        formData.append('lot_number', lotNumber);
-        formData.append('captcha_output', captchaOutput);
-        formData.append('pass_token', passToken);
-        formData.append('gen_time', genTime);
-        formData.append('sign_token', signToken);
-
-        // 3. POST to GeeTest validation endpoint
-        const url = `${GEETEST_API_SERVER}/validate?captcha_id=${GEETEST_CAPTCHA_ID}`;
-        const response = await axios.post(url, formData.toString(), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        const apiResponse = await axios.post(FRIENDLY_CAPTCHA_API_URL, payload, {
+            headers: {
+                'X-API-Key': FRIENDLY_CAPTCHA_API_KEY,
+                'Content-Type': 'application/json',
+            },
             timeout: 5000,
         });
 
-        console.log('GeeTest validation response:', response.data);
-        return response.data && response.data.result === 'success';
+        console.log('Friendly Captcha validation response:', apiResponse.data);
+        return apiResponse.data;
     } catch (error) {
-        console.error('GeeTest validation error:', error.message);
-        return true; // fail-open for demo (disaster recovery)
+        console.error('Friendly Captcha validation error:', error.message);
+        
+        // Fail-open for disaster recovery (if API is down, allow the request)
+        // In production, you might want to be more strict
+        return { 
+            success: true, 
+            _failOpen: true,
+            _error: error.message 
+        };
     }
 }
 
@@ -54,27 +56,48 @@ async function validateGeeTestCaptcha(lotNumber, captchaOutput, passToken, genTi
 //  Login Endpoint — verifies CAPTCHA and returns success
 // ═══════════════════════════════════════════════════════════════════════════
 app.post('/api/login', async (req, res) => {
-    const { email, password, lot_number, captcha_output, pass_token, gen_time } = req.body;
+    const { email, password } = req.body;
+    const captchaResponse = req.body['frc-captcha-response'];
 
     console.log('----- /api/login -----');
     console.log('Email:', email);
 
-    // Validate CAPTCHA params present
-    if (!lot_number || !captcha_output || !pass_token || !gen_time) {
-        return res.status(400).json({ success: false, message: 'CAPTCHA verification data missing' });
+    // Validate CAPTCHA response present
+    if (!captchaResponse) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'CAPTCHA verification data missing' 
+        });
     }
 
-    if (!GEETEST_CAPTCHA_KEY) {
-        console.error('GEETEST_CAPTCHA_KEY environment variable is not set');
-        return res.status(500).json({ success: false, message: 'Server configuration error' });
+    // Check API key is configured
+    if (!FRIENDLY_CAPTCHA_API_KEY) {
+        console.error('FRIENDLY_CAPTCHA_API_KEY environment variable is not set');
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Server configuration error' 
+        });
     }
 
-    // Verify with GeeTest
-    const isCaptchaValid = await validateGeeTestCaptcha(lot_number, captcha_output, pass_token, gen_time);
-    console.log('GeeTest CAPTCHA valid? →', isCaptchaValid);
+    // Verify with Friendly Captcha
+    const verification = await validateFriendlyCaptcha(
+        captchaResponse, 
+        FRIENDLY_CAPTCHA_SITEKEY
+    );
+    
+    console.log('Friendly Captcha valid? →', verification.success);
+    
+    if (verification._failOpen) {
+        console.warn('⚠️ CAPTCHA verification failed open due to API error');
+    }
 
-    if (!isCaptchaValid) {
-        return res.status(400).json({ success: false, message: 'CAPTCHA validation failed' });
+    if (!verification.success) {
+        const errorCode = verification.error?.error_code || 'unknown';
+        console.log('CAPTCHA validation failed:', errorCode);
+        return res.status(400).json({ 
+            success: false, 
+            message: 'CAPTCHA validation failed' 
+        });
     }
 
     // CAPTCHA passed — return success
@@ -84,6 +107,8 @@ app.post('/api/login', async (req, res) => {
 
 // ─── Start server ───────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+if (require.main === module) {
+    app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+}
 
 module.exports = app;

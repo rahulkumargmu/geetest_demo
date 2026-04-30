@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Demo CAPTCHA — GeeTest v4</title>
+    <title>Demo CAPTCHA — Friendly Captcha v2</title>
     <link rel="stylesheet" href="styles.css" />
-    <!-- GeeTest v4 SDK -->
-    <script src="https://static.geetest.com/v4/gt4.js"></script>
+    <!-- Friendly Captcha v2 SDK (latest v1.0.0) -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@friendlycaptcha/sdk@1.0.0/site.min.js" async defer></script>
+    <script nomodule src="https://cdn.jsdelivr.net/npm/@friendlycaptcha/sdk@1.0.0/site.compat.min.js" async defer></script>
 </head>
 <body class="blue-background">
     <header class="page-header">Demo CAPTCHA</header>
@@ -20,10 +21,10 @@
                     <input type="email" id="login-email" placeholder="Email" value="test@gmail.com" required />
                     <input type="password" id="login-password" placeholder="Password" value="test" required />
 
-                    <!-- GeeTest CAPTCHA widget -->
-                    <div id="login-captcha-box"></div>
+                    <!-- Friendly Captcha widget (zero-click + auto-start for invisible experience) -->
+                    <div class="frc-captcha" data-sitekey="FCMH2CTMPJSS4Q72" data-start="auto"></div>
 
-                    <button type="submit">Login</button>
+                    <button type="submit" id="submit-button">Login</button>
                 </form>
 
                 <!-- Success message (hidden by default) -->
